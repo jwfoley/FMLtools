@@ -7,6 +7,13 @@ def zero_data (feature):
 	feature.data['count'] = 0
 	return feature
 
+def increment_count (region,feature):
+	try:
+		this_count = int(feature.data[3])
+	except ValueError: # if there is no count (score) specified for this feature, treat it as a single count
+		this_count = 1
+	region.data.__setitem__('count', region.data['count'] + this_count) # increment by count
+
 @click.command()
 @click.option('-p', '--position', type = int, default = 0, help = 'position offset of counted base within motif')
 @click.option('-z', '--zeroes', is_flag = True, help = 'output regions with zero count')
@@ -25,6 +32,7 @@ def region_counts (region_bed, count_bed, out_tsv, reference_file, position, zer
 	'''
 	
 	references = gen.read_reference_lengths(reference_file)
+	reference_names = list(references.keys())
 	reference_lengths = list(references.values())
 	region_stream = gen.BedStream(region_bed, assert_sorted = True, references = references.keys())
 	count_stream = gen.BedStream(count_bed, assert_sorted = True, parse = False, references = references.keys())
@@ -35,12 +43,16 @@ def region_counts (region_bed, count_bed, out_tsv, reference_file, position, zer
 		match = lambda a,b: b.start.shifted_forward(position) in a,
 		a_is_passed = lambda a,b: b - a > abs(position), # this is a cautious maximum distance
 		b_is_passed = lambda a,b: a - b > abs(position), # this is a cautious maximum distance
-		operate = lambda region,feature: region.data.__setitem__('count', region.data['count'] + int(feature.data[3])) # increment by count
+		operate = increment_count
 	)
 	
 	if not quiet: bar = gen.ProgressBar(reference_lengths)
 	for region in counter:
-		if zeroes or region.data['count'] > 0: out_tsv.write('%s\t%i\n' % (region.data['name'], region.data['count']))
+		try:
+			region_name = region.data['name']
+		except KeyError:
+			region_name = '%s:%i-%i%s' % (reference_names[region.reference_id], region.left_pos, region.right_pos, ('-' if region.is_reverse else '+'))
+		if zeroes or region.data['count'] > 0: out_tsv.write('%s\t%i\n' % (region_name, region.data['count']))
 		if not quiet: bar.update(region)
 	if not quiet: bar.finish()
 
