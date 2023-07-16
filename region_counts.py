@@ -48,11 +48,12 @@ def region_counts (region_bed, count_bed, out_tsv, reference_file, position, zer
 	
 	if not quiet: bar = gen.ProgressBar(reference_lengths)
 	for region in counter:
-		try:
-			region_name = region.data['name']
-		except KeyError:
-			region_name = '%s:%i-%i%s' % (reference_names[region.reference_id], region.left_pos, region.right_pos, ('-' if region.is_reverse else '+'))
-		if zeroes or region.data['count'] > 0: out_tsv.write('%s\t%i\n' % (region_name, region.data['count']))
+		if zeroes or region.data['count'] > 0:
+			try:
+				region_name = region.data['name']
+			except KeyError:
+				region_name = '%s:%i-%i%s' % (reference_names[region.reference_id], region.left_pos, region.right_pos, ('-' if region.is_reverse else '+'))
+			out_tsv.write('%s\t%i\n' % (region_name, region.data['count']))
 		if not quiet: bar.update(region)
 	if not quiet: bar.finish()
 
